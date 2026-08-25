@@ -1,0 +1,10 @@
+# Ignore VS Code configs
+.vscode/
+
+# Ignore following file formats:
+*.pdf
+
+# Ignore compiled build outputs
+*.o
+*.elf
+*.img
