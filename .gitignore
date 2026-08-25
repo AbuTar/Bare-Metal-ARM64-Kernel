@@ -5,12 +5,12 @@
 build/
 CMakeFiles/
 pdfs/
-CMakeCache.txt
-cmake_install.cmake
+/sd card
 Makefile
 
 # Ignore following file formats:
 *.pdf
+*.txt
 
 # Ignore compiled build outputs
 *.o
