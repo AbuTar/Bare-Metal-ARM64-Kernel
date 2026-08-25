@@ -11,7 +11,7 @@
 #define GPCLR0          (GPIO_BASE + 0x28)
 
 // GPIO 29 Bitmask (Onboard LED for Pi Zero 2 W)
-#define LED_PIN         (1 << 29)
+#define LED_PIN             (1 << 29)
 #define GPIO29_FSEL_MASK    (7 << 27)  // Bits 27-29: Clears bits
 #define GPIO29_FSEL_OUTPUT  (1 << 27)  // Applies pattern to bits 27-29
 
@@ -24,10 +24,31 @@ static inline uint32_t mmio_read(uint32_t reg) {
     return *(volatile uint32_t*)(uint64_t)reg;
 }
 
-/* Hardware Assembly Delay Loop */
-static inline void delay(int32_t count) {
-    asm volatile("__delay_%=: subs %[count], %[count], #1; bne __delay_%=\n"
-                 : "=r"(count) : [count]"0"(count) : "cc");
+/* ARM Generic Timer Helpers (Cortex-A53)
+   cntfrq_el0 = fixed frequency of the system counter (Hz)
+   cntpct_el0 = current counter value (ticks since boot) */
+static inline uint64_t get_timer_freq(void) {
+    uint64_t freq;
+    asm volatile("mrs %0, cntfrq_el0" : "=r"(freq));
+    return freq;
+}
+
+static inline uint64_t get_timer_ticks(void) {
+    uint64_t ticks;
+    asm volatile("mrs %0, cntpct_el0" : "=r"(ticks));
+    return ticks;
+}
+
+/* Busy-wait for approximately ms milliseconds, timed against the
+   hardware counter rather than a fixed instruction count, so the
+   delay stays accurate regardless of CPU clock speed or optimization level. */
+static inline void delay_ms(uint32_t ms) {
+    uint64_t freq = get_timer_freq();
+    uint64_t start = get_timer_ticks();
+    uint64_t target = (freq / 1000) * ms;
+    while ((get_timer_ticks() - start) < target) {
+        // busy wait
+    }
 }
 
 /* Initialize Onboard LED (GPIO 29) */
@@ -39,11 +60,11 @@ void led_init(void) {
 }
 
 void led_on(void) {
-    mmio_write(GPSET0, LED_PIN);
+    mmio_write(GPCLR0, LED_PIN);
 }
 
 void led_off(void) {
-    mmio_write(GPCLR0, LED_PIN);
+    mmio_write(GPSET0, LED_PIN);
 }
 
 /* Kernel Entry Point called by boot.S */
@@ -55,8 +76,8 @@ void kernel_main(uint64_t dtb_ptr32, uint64_t x1, uint64_t x2, uint64_t x3) {
     // Blink loop: LED turns ON and OFF repeatedly
     while (1) {
         led_on();
-        delay(30000000);
+        delay_ms(500);
         led_off();
-        delay(30000000);
+        delay_ms(500);
     }
 }
