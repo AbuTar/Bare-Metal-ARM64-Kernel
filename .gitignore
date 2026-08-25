@@ -4,6 +4,7 @@
 # Ignore CMake build directories and artifacts
 build/
 CMakeFiles/
+pdfs/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
