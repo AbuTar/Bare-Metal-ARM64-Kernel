@@ -1,32 +1,14 @@
 #include <stddef.h>
 #include <stdint.h>
-
-// RPi Zero 2 W MMIO Base Address and Peripheral Offsets
-#define MMIO_BASE       0x3F000000
-
-// GPIO Registers
-#define GPIO_BASE       (MMIO_BASE + 0x200000)
-#define GPFSEL2         (GPIO_BASE + 0x08)
-#define GPSET0          (GPIO_BASE + 0x1C)
-#define GPCLR0          (GPIO_BASE + 0x28)
-
-// GPIO 29 Bitmask (Onboard LED for Pi Zero 2 W)
-#define LED_PIN             (1 << 29)
-#define GPIO29_FSEL_MASK    (7 << 27)  // Bits 27-29: Clears bits
-#define GPIO29_FSEL_OUTPUT  (1 << 27)  // Applies pattern to bits 27-29
-
-/* Memory-Mapped I/O Helper Functions */
-static inline void mmio_write(uint32_t reg, uint32_t data) {
-    *(volatile uint32_t*)(uint64_t)reg = data;
-}
-
-static inline uint32_t mmio_read(uint32_t reg) {
-    return *(volatile uint32_t*)(uint64_t)reg;
-}
+#include "gpio.h"
+#include "led_err.h"
+#include "lcd_driver.h"
+#include "timer.h"
 
 /* ARM Generic Timer Helpers (Cortex-A53)
    cntfrq_el0 = fixed frequency of the system counter (Hz)
    cntpct_el0 = current counter value (ticks since boot) */
+
 static inline uint64_t get_timer_freq(void) {
     uint64_t freq;
     asm volatile("mrs %0, cntfrq_el0" : "=r"(freq));
@@ -42,7 +24,7 @@ static inline uint64_t get_timer_ticks(void) {
 /* Busy-wait for approximately ms milliseconds, timed against the
    hardware counter rather than a fixed instruction count, so the
    delay stays accurate regardless of CPU clock speed or optimization level. */
-static inline void delay_ms(uint32_t ms) {
+void delay_ms(uint32_t ms) {
     uint64_t freq = get_timer_freq();
     uint64_t start = get_timer_ticks();
     uint64_t target = (freq / 1000) * ms;
@@ -72,12 +54,33 @@ void kernel_main(uint64_t dtb_ptr32, uint64_t x1, uint64_t x2, uint64_t x3) {
     (void)dtb_ptr32; (void)x1; (void)x2; (void)x3; // Suppress unused warnings
 
     led_init();
+    led_off();
+    lcd_init();
 
-    // Blink loop: LED turns ON and OFF repeatedly
+    // lcd_fill_screen(RED);
+    // delay_ms(5000);
+
+    // lcd_fill_screen(GREEN);
+    // delay_ms(5000);
+
+    // lcd_fill_screen(BLUE);
+    // delay_ms(5000);
+
     while (1) {
+        // Core loop
         led_on();
-        delay_ms(500);
+        lcd_fill_screen(RED);
+        delay_ms(2000);
+        
         led_off();
-        delay_ms(500);
+        lcd_fill_screen(GREEN);
+        delay_ms(2000);
+
+        led_on();
+        lcd_fill_screen(BLUE);
+        delay_ms(2000);
+
+        led_off();
+        delay_ms(2000);
     }
 }
