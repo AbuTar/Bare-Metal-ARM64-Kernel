@@ -53,34 +53,56 @@ void led_off(void) {
 void kernel_main(uint64_t dtb_ptr32, uint64_t x1, uint64_t x2, uint64_t x3) {
     (void)dtb_ptr32; (void)x1; (void)x2; (void)x3; // Suppress unused warnings
 
-    led_init();
-    led_off();
-    lcd_init();
+    // led_init();
+    // led_off();
+    // lcd_init();
 
-    // lcd_fill_screen(RED);
-    // delay_ms(5000);
-
-    // lcd_fill_screen(GREEN);
-    // delay_ms(5000);
-
-    // lcd_fill_screen(BLUE);
-    // delay_ms(5000);
-
-    while (1) {
-        // Core loop
-        led_on();
-        lcd_fill_screen(RED);
-        delay_ms(2000);
+    // while (1) {
+    //     // Core loop
+    //     led_on();
+    //     lcd_fill_screen(RED);
+    //     delay_ms(2000);
         
-        led_off();
-        lcd_fill_screen(GREEN);
-        delay_ms(2000);
+    //     led_off();
+    //     lcd_fill_screen(GREEN);
+    //     delay_ms(2000);
 
+    //     led_on();
+    //     lcd_fill_screen(BLUE);
+    //     delay_ms(2000);
+
+    //     led_off();
+    //     delay_ms(2000);
+    // }
+
+    lcd_init();
+    lcd_fill_screen(BLACK);
+
+    // Initialisation Sequence
+
+    lcd_draw_string("Starting Bare Metal OS...", 10, 10, WHITE, BLACK);
+    delay_ms(600);
+    lcd_draw_string("Initialising SPI Bus...", 10, 20, WHITE, BLACK);
+    delay_ms(400);
+    lcd_draw_string("[ OK ]", 300, 20, GREEN, BLACK);
+    lcd_draw_string("Probing ST7789 Display...", 10, 30, WHITE, BLACK);
+    delay_ms(500);
+    lcd_draw_string("[ OK ]", 300, 30, GREEN, BLACK);
+    lcd_draw_string("System Initialisation Complete.", 10, 50, GREEN, BLACK);
+    delay_ms(1200);
+
+    lcd_fill_screen(BLACK);
+    
+    // Print text
+    lcd_draw_string("BARE METAL PI ZERO 2 W", 10, 10, GREEN, BLACK);
+    lcd_draw_string("ST7789 Display Driver", 10, 20, WHITE, BLACK);
+    lcd_draw_string("Status: Online", 10, 30, BLUE, BLACK);
+
+    while(1) {
+        // Blink LED to prove the kernel is alive
         led_on();
-        lcd_fill_screen(BLUE);
-        delay_ms(2000);
-
+        delay_ms(1000);
         led_off();
-        delay_ms(2000);
+        delay_ms(1000);
     }
 }
