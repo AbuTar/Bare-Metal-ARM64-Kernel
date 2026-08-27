@@ -1,6 +1,7 @@
 #include "lcd_driver.h"
 #include "spi.h"
 #include "gpio.h"
+#include "font.h"
 
 extern void delay_ms(uint32_t ms);
 
@@ -55,9 +56,12 @@ void lcd_init(void) {
     /*  For the LCD I need to make use of MAC (Memory Access Control)
         - 0x00 is RGB but if the colours show as one another I can shift to BGR (also common)
         - Colour mode needs ot be set to RGB565 (0x55)
-        - Inversion needs to be turned off so RGB doesn't show as CMY*/
+        - Inversion needs to be turned off so RGB doesn't show as CMY
+        - 0x00 is Portrait
+        - 0x70 is Landscape (Rotate 90 deg)
+        - 0xA0 is Landscape Inverted (Rotate 270 deg)*/
 
-    write_register(0x36, (uint8_t[]){0x00}, 1);
+    write_register(0x36, (uint8_t[]){0x70}, 1);
     write_register(0x3A, (uint8_t[]){0x55}, 1);
     write_register(0x20, 0, 0); 
     
@@ -70,22 +74,22 @@ void lcd_init(void) {
 }
 
 void lcd_fill_screen(uint32_t colour){
-    set_window(0, 0, 239, 319);
+    set_window(0, 0, 319, 239);
 
     // Splits 24-bit RGB color number into three separate 8-bit components
     uint8_t R = (colour >> 16) & 0xFF;
     uint8_t G = (colour >> 8) & 0xFF;
     uint8_t B =  colour & 0xFF;
 
-    // 1 Line is 240 pixels * 2 bytes = 480 bytes
-    uint8_t line_buffer[240*2];
+    // 1 Line is 320 pixels * 2 bytes = 640 bytes
+    uint8_t line_buffer[320*2];
 
     // 240-bit RBG to RGB565
     uint16_t colour_565 = ((R & 0xF8) << 8) |
                           ((G & 0xFC) << 3) |
                           (B >> 3);
 
-    for (int i = 0; i < 240; i++) {
+    for (int i = 0; i < 320; i++) {
         line_buffer[i * 2]     = colour_565 >> 8;
         line_buffer[i * 2 + 1] = colour_565 & 0xFF;
     }
@@ -95,9 +99,76 @@ void lcd_fill_screen(uint32_t colour){
     mmio_write(GPCLR0, PIN_CS);
     mmio_write(GPSET0, PIN_DC);
 
-    for (int row = 0; row < 320; row++) {
+    for (int row = 0; row < 240; row++) {
         spi_send_buffer(line_buffer, sizeof(line_buffer));
     }
 
     mmio_write(GPSET0, PIN_CS);
+}
+
+static uint16_t colour_to_565(uint32_t colour){
+    uint8_t R = (colour >> 16) & 0xFF;
+    uint8_t G = (colour >> 8) & 0xFF;
+    uint8_t B =  colour & 0xFF;
+    return ((R & 0xF8) << 8) | ((G & 0xFC) << 3) | (B >> 3);
+}
+
+void lcd_draw_char(char c, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour) {
+    /* O    nly draws characters I want it to
+        I need to define a small grid for where each character belongs*/
+    if (c < 32 || c > 127) {
+        return;
+    } 
+    
+    set_window(x, y, x + 7, y + 7);
+    uint16_t fg = colour_to_565(fg_colour);
+    uint16_t bg = colour_to_565(bg_colour);
+    
+    // Every 8x8 grid is 64 pixels which is 128 bytes so buffer needs to be this size
+    uint8_t buffer[128]; 
+    int idx = 0;
+    
+    /* First character I can represent is a space which has value 32, so need offset.
+        I also need to check if something is a background or foreground by checking if the bit is 1 or 0 */
+
+    int font_idx = c - 32;
+
+    for (int row = 0; row < 8; row++) {
+        uint8_t pixel_row = font8x8[font_idx][row];
+        
+        for (int col = 0; col < 8; col++) {
+            
+            if (pixel_row & (0x80 >> col)) { 
+                buffer[idx++] = fg >> 8;
+                buffer[idx++] = fg & 0xFF;
+            } else {
+                buffer[idx++] = bg >> 8;
+                buffer[idx++] = bg & 0xFF;
+            }
+        }
+    }
+
+    // Updates buffer
+    mmio_write(GPCLR0, PIN_CS);
+    mmio_write(GPSET0, PIN_DC);
+    spi_send_buffer(buffer, 128);
+    mmio_write(GPSET0, PIN_CS);
+}
+
+void lcd_draw_string(const char *str, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour) {
+    uint16_t start_x = x;
+    
+    while (*str) {
+        if (*str == '\n') {
+            /*  Move down line, and then reset x position*/
+            y += 8;         
+            x = start_x;
+        }
+
+        else{
+            lcd_draw_char(*str, x, y, fg_colour, bg_colour);
+            x += 8;
+        }
+        str++;
+    }
 }
