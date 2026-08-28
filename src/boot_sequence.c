@@ -17,7 +17,7 @@ void boot_sequence(void) {
     delay_ms(800);
 
     // Remaining Sequence
-    lcd_draw_string("System Initialisation Complete.", 10, 20, GREEN, BLACK);
+    lcd_draw_string("Splash Sequence Commencing", 10, 20, GREEN, BLACK);
     delay_ms(1000); 
     lcd_fill_screen(BLACK);
 
