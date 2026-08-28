@@ -114,7 +114,7 @@ static uint16_t colour_to_565(uint32_t colour){
 }
 
 void lcd_draw_char(char c, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour) {
-    /* O    nly draws characters I want it to
+    /* Only draws characters I want it to
         I need to define a small grid for where each character belongs*/
     if (c < 32 || c > 127) {
         return;
@@ -158,9 +158,9 @@ void lcd_draw_char(char c, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t 
 void lcd_draw_string(const char *str, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour) {
     uint16_t start_x = x;
     
+    /*  Move down line, and then reset x position*/
     while (*str) {
         if (*str == '\n') {
-            /*  Move down line, and then reset x position*/
             y += 8;         
             x = start_x;
         }
@@ -171,4 +171,59 @@ void lcd_draw_string(const char *str, uint16_t x, uint16_t y, uint32_t fg_colour
         }
         str++;
     }
+}
+
+void lcd_draw_string_animated(const char *str, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour, uint32_t speed_ms) {
+    uint16_t start_x = x;
+    
+    while (*str) {
+        if (*str == '\n') {
+            y += 8;         
+            x = start_x;
+        } else {
+            lcd_draw_char(*str, x, y, fg_colour, bg_colour);
+            x += 8;
+            delay_ms(speed_ms);
+        }
+        str++;
+    }
+}
+
+void lcd_draw_char_scaled(char c, uint16_t x, uint16_t y, uint32_t fg_colour, uint32_t bg_colour, uint8_t scale) {
+    if (c < 32 || c > 127 || scale < 1) return; 
+    
+    uint16_t scaled_size = 8 * scale;
+    set_window(x, y, x + scaled_size - 1, y + scaled_size - 1);
+    
+    uint16_t fg = colour_to_565(fg_colour);
+    uint16_t bg = colour_to_565(bg_colour);
+    
+    // A buffer large enough to hold one horizontally stretched row (up to scale x10)
+    uint8_t row_buffer[160]; 
+    
+    int font_idx = c - 32;
+
+    mmio_write(GPCLR0, PIN_CS);
+    mmio_write(GPSET0, PIN_DC);
+
+    for (int row = 0; row < 8; row++) {
+        uint8_t pixel_row = font8x8[font_idx][row];
+        
+        // Builds a horizontal line buy repeating pixels since they need to be stretched
+        int idx = 0;
+        for (int col = 0; col < 8; col++) {
+            uint16_t pixel_color = (pixel_row & (0x80 >> col)) ? fg : bg;
+            for (int s = 0; s < scale; s++) {
+                row_buffer[idx++] = pixel_color >> 8;
+                row_buffer[idx++] = pixel_color & 0xFF;
+            }
+        }
+        
+        // Stretches the lines to scale them
+        for (int s = 0; s < scale; s++) {
+            spi_send_buffer(row_buffer, scaled_size * 2);
+        }
+    }
+
+    mmio_write(GPSET0, PIN_CS);
 }
