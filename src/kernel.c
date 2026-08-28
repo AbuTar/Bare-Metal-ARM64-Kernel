@@ -67,14 +67,47 @@ void kernel_main(uint64_t dtb_ptr32, uint64_t x1, uint64_t x2, uint64_t x3) {
 
     while(1) {
         char character = uart_receive();
-        uart_send(character);
-        lcd_draw_char(character, cursor_x, cursor_y, WHITE, BLACK);
-        cursor_x += 8;
 
-        if (cursor_x >= 310){
+        /*  To implement "deleting" characters or adding a space, a workaround is needed:
+            Delete - overwrite the character with a blank and return cursor
+            Space - insert a blank
+            New Line - change cursor position*/
+
+        if (character == '\r' || character == '\n'){
+            uart_send('\r');;
+            uart_send('\n');
+
             cursor_x = 10;
             cursor_y += 10;
         }
+
+        else if (character == '\b' || character == 127) {
+        // Prevents clipping left side of screen by deleting too much
+            if (cursor_x > 10) {
+                uart_send('\b');
+                uart_send(' ');
+                uart_send('\b');
+
+                // Erases the character on the lcd
+                cursor_x -= 8; 
+                lcd_draw_char(' ', cursor_x, cursor_y, WHITE, BLACK); 
+            }
+        }
+
+        else{
+
+            // Send to terminal and lcd
+            uart_send(character);
+            lcd_draw_char(character, cursor_x, cursor_y, WHITE, BLACK);
+            cursor_x += 8;
+
+            if (cursor_x >= 310){
+                cursor_x = 10;
+                cursor_y += 10;
+            }
+
+        }
+        
 
 
     }
