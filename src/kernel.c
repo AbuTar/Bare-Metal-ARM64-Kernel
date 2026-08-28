@@ -5,6 +5,8 @@
 #include "lcd_driver.h"
 #include "timer.h"
 #include "boot_sequence.h"
+#include "utils.h"
+#include "uart.h"
 
 /* ARM Generic Timer Helpers (Cortex-A53)
    cntfrq_el0 = fixed frequency of the system counter (Hz)
@@ -56,14 +58,24 @@ void kernel_main(uint64_t dtb_ptr32, uint64_t x1, uint64_t x2, uint64_t x3) {
 
     lcd_init();
     lcd_fill_screen(BLACK);
-
-    // Calls animated boot sequence
     boot_sequence();
+    uart_send_string("Serial Interface is Online!\n");
+    lcd_draw_string("Waiting for input...", 10, 40, WHITE, BLACK);
+
+    int cursor_x = 10;
+    int cursor_y = 70;
+
     while(1) {
-        // Blink LED to prove the kernel is alive
-        led_on();
-        delay_ms(1000);
-        led_off();
-        delay_ms(1000);
+        char character = uart_receive();
+        uart_send(character);
+        lcd_draw_char(character, cursor_x, cursor_y, WHITE, BLACK);
+        cursor_x += 8;
+
+        if (cursor_x >= 310){
+            cursor_x = 10;
+            cursor_y += 10;
+        }
+
+
     }
 }

@@ -19,6 +19,10 @@
 #define GPSET0              (GPIO_BASE + 0x1C)
 #define GPCLR0              (GPIO_BASE + 0x28)
 
+// GPIO Pull-up/down Registers
+#define GPPUD               (GPIO_BASE + 0x94)
+#define GPPUDCLK0           (GPIO_BASE + 0x98)
+
 // Onboard ACT LED (GPIO 29) Configuration
 #define LED_PIN             (1 << 29)
 #define GPIO29_FSEL_MASK    (7 << 27)
